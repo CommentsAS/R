@@ -1,0 +1,68 @@
+library(rJava)
+library(DBI)
+library(RJDBC)
+
+
+# setting driver and connection configuration
+drv_Oracle <- JDBC(driverClass="oracle.jdbc.OracleDriver", classPath="C:/ojdbc6.jar")
+con_Oracle <- dbConnect(drv_Oracle,"jdbc:oracle:thin:@70.12.50.136:1521:orcl","youtube","1234")
+
+# SQL query
+query <- "SELECT * FROM channel_info " 
+query2 <- "SELECT * FROM channel_info where cid=(select cid from user_info where user_name='루루빈')" 
+# executing DB connect & query
+my_data <- dbGetQuery(con_Oracle, query)
+my_data2<- dbGetQuery(con_Oracle, query2)
+head(my_data$TVIDEO)
+
+plot(x=my_data$TVIEW, y=my_data$TVIDEO)
+max(my_data$TVIDEO)
+my_data<-list(my_data)
+my_data<-as.data.frame(my_data)
+
+install.packages("shiny")
+library(shiny)
+
+
+# Define UI for application that draws a histogram
+ui <- fluidPage(
+  # Application title
+  titlePanel("Channel Data"),
+  fluidRow(
+    column(3, actionButton("action", "MyChannel"))
+  ),
+  
+  # Sidebar with a slider input for number of bins 
+  sidebarLayout(
+    sidebarPanel(
+      selectInput(inputId = "xAxis", "Choose X axis : ",choices =c(Total_views="TVIEW","TVIDEO", "TSUBSCRIBE")),
+      selectInput(inputId = "yAxis", "Choose y axis : ",choices =c("TVIDEO", "TSUBSCRIBE","TVIEW"))
+    ),
+    
+    # Show a plot of the generated distribution
+    mainPanel(
+      plotOutput("channelanalysisPlot")
+    )
+  )
+)
+
+# Define server logic required to draw a histogram
+server <- function(input, output) {
+  react<-reactiveValues(data=NULL)
+  observeEvent(input$action,{
+    react$data<-c(my_data2$TVIEW)
+  })
+  output$channelanalysisPlot <- renderPlot({
+    # generate bins based on input$bins from ui.R
+    
+    p <- plot(my_data[,c(input$xAxis, input$yAxis)], col="gray")
+  
+    if(!is.null(react$data)){
+      P<- p + points(my_data2[, c(input$xAxis,input$yAxis)] , col="red", pch=3)
+    }
+  })
+}
+
+# Run the application 
+shinyApp(ui = ui, server = server)
+
